@@ -48,7 +48,18 @@
     <p>Double-click to edit a todo</p>
   </footer>
   </div>
-</template><script>
+</template>
+<script>
+  // Initialize Firebase
+  var config = {
+    apiKey: "AIzaSyADNNL2K9GIwpUoSiihQRYjVX-y_tZ_m8A",
+    authDomain: "todo-vue-fb.firebaseapp.com",
+    databaseURL: "https://todo-vue-fb.firebaseio.com",
+    projectId: "todo-vue-fb",
+    storageBucket: "",
+    messagingSenderId: "395068513513"
+  };
+  firebase.initializeApp(config);
 // @ is an alias to /src
 // import Todoapp from "@/components/Todoapp.vue";
 
@@ -69,7 +80,30 @@ var todoStorage = {
   },
   save: function(todos) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
-  }
+	},
+	fetchFirebase: function(callback) {
+		var ref = firebase.app().database().ref('/todos/thiago');
+		var self = this;
+
+		let thenProm = ref.once('value').then(function (snap) {
+			var todos =  snap.val() || [];
+			todos.forEach(function(todo, index) {
+				todo.id = index;
+			});
+						
+			 todoStorage.uid = todos.length;
+				console.log(todos);
+			 if(callback) callback.call(todos);
+		})
+	},
+	saveFirebase: function(todos) {
+		// Get a key for a new Post.
+		var newPostKey = firebase.database().ref().child('todos').push().key;
+		// Write the new post's data simultaneously in the posts list and the user's post list.
+  	var updates = {};
+  	updates['/todos/' + 'thiago'] = todos;
+  	return firebase.database().ref().update(updates);
+	}
 };
 
 // visibility filters
@@ -94,7 +128,7 @@ export default {
   // app initial state
   data() {
     return {
-      todos: todoStorage.fetch(),
+      todos: [],
       newTodo: "",
       editedTodo: null,
       visibility: "all"
@@ -105,7 +139,7 @@ export default {
   watch: {
     todos: {
       handler: function(todos) {
-        todoStorage.save(todos);
+        todoStorage.saveFirebase(todos);
       },
       deep: true
     }
@@ -181,7 +215,13 @@ export default {
 
     removeCompleted: function() {
       this.todos = filters.active(this.todos);
-    }
+		},
+		init: function() {
+			var self = this;
+			todoStorage.fetchFirebase(function(){
+				self.todos = this;
+			});
+		}
   },
 
   // a custom directive to wait for the DOM to be updated
@@ -193,7 +233,10 @@ export default {
         el.focus();
       }
     }
-  }
+  },
+  mounted() {
+		this.init();
+	}
 };
 
 import App from "./../App.vue";
